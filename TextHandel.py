@@ -1,5 +1,6 @@
 import json
 import os
+import global_var
 
 #用于确定字符串是否是json对象
 def is_valid_json(json_str):
@@ -72,7 +73,7 @@ def append_to_txt_file(file_name, content1, content2, content3):
 
 #去除机器人开头可能的自带称谓
 def remove_prefix(input_string):
-    prefixes = ["天音：","八六:","铃：","八六："]
+    prefixes = [global_var.CharacterName + "："]
 
     for prefix in prefixes:
         if input_string.startswith(prefix):
@@ -128,7 +129,7 @@ def lines_to_list(text):
 
 #用来判断是否是对八六说的话
 def break_judge(message):
-    if any(item in message for item in ["八六", "[CQ:at,qq=551516297]", "86", "铃"]):
+    if any(item in message for item in [global_var.CharacterName, global_var.QQ_at_token]):
         return True
     else:
         return False

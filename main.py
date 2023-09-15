@@ -7,6 +7,7 @@ import SendMessage
 import os
 import embedding
 from ChatGLM2 import GLMmain
+import global_var
 
 
 
@@ -18,7 +19,7 @@ def main():
     # 加载ptuning的CheckPoint
     config = AutoConfig.from_pretrained(r".\model\ChatGLM2-6b", trust_remote_code=True, pre_seq_len=128)
     model = AutoModel.from_pretrained(r".\model\ChatGLM2-6b", config=config, trust_remote_code=True)
-    prefix_state_dict = torch.load(os.path.join(r".\model\baliu_model", "pytorch_model.bin"))
+    prefix_state_dict = torch.load(os.path.join("./model/" + global_var.PtuningModel, "pytorch_model.bin"))
     new_prefix_state_dict = {}
     for k, v in prefix_state_dict.items():
         if k.startswith("transformer.prefix_encoder."):
@@ -72,7 +73,7 @@ def main():
                     for MessageResult in ResultList:
                         SendMessage.sendmessage(TextHandel.remove_prefix(MessageResult),group_id)
 
-                        MemorySentence = "八六：" + TextHandel.remove_prefix(MessageResult)
+                        MemorySentence = global_var.CharacterName+ "：" + TextHandel.remove_prefix(MessageResult)
                         MemoryResult = {"sentence": MemorySentence,
                                         "embedding": embedding.GetEmbedding(MemorySentence).tolist()}
                         with lock_file:
@@ -80,7 +81,7 @@ def main():
                 else:
                     SendMessage.sendmessage(TextHandel.remove_prefix(GLMResult),group_id)
 
-                    MemorySentence = "八六：" + TextHandel.remove_prefix(GLMResult)
+                    MemorySentence = global_var.CharacterName + "：" + TextHandel.remove_prefix(GLMResult)
                     MemoryResult = {"sentence": MemorySentence,
                                     "embedding": embedding.GetEmbedding(MemorySentence).tolist()}
 
