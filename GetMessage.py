@@ -15,27 +15,26 @@ def getmessage(message_queue):
     server_socket.listen(1)
     print(f"Listening on {host}:{getmessage_port}")
 
-
-
     json_data = None
 
     while True:
         client_socket, client_address = server_socket.accept()
         data=b""
 
+        #将接收到的信息存入data并解码
         while True:
             chunk = client_socket.recv(1024)
             if not chunk:
                 break
             data += chunk
-
-
         request_lines = data.decode('utf-8').split('\r\n')
 
+        #将解码后的信息转化为json
         for line_index, line in enumerate(request_lines):
             if line.startswith("{"):
                 json_data = json.loads(request_lines[line_index])
                 break
+
 
         if json_data:
 
@@ -54,12 +53,13 @@ def getmessage(message_queue):
                     #获取群组消息后
                     group_id = json_data.get("group_id",None)
                     card = sender_match.get("card",None)
-                    if card != '':
-                        message_queue.put({"group_id":group_id,"nickname":card,"user_id":user_id,"message":message_match})
+                    if not ('[CQ:' in message_match):
+                        if card != '':
+                            message_queue.put({"group_id":group_id,"nickname":card,"user_id":user_id,"message":message_match})
 
-                    else:
-                        message_queue.put({"group_id":group_id,"nickname":nickname,"user_id":user_id,"message":message_match})
-                    print("已将消息放入队列中")
+                        else:
+                            message_queue.put({"group_id":group_id,"nickname":nickname,"user_id":user_id,"message":message_match})
+                        print("已将消息放入队列中")
 
 
                 if message_type_match == "private":

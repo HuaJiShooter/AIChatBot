@@ -8,10 +8,17 @@ import os
 import embedding
 from ChatGLM2 import GLMmain
 import global_var
+import datetime
+import json
+import database
 
 
 
 def main():
+    if torch.cuda.is_available():
+        print("CUDA is available.")
+    else:
+        print("CUDA is not available.")
 
     print("正在载入模型")
     # 载入Tokenizer
@@ -29,15 +36,16 @@ def main():
     model = model.quantize(8).cuda().eval()
     print("模型载入成功")
 
+
     # 信息共享队列
     thread_mapping = {
-        "群号1": multiprocessing.Queue(),
-        "群号2": multiprocessing.Queue()
+        "588039956": multiprocessing.Queue(),
+        "719631496": multiprocessing.Queue()
     }
     # 结果共享队列，mapping应该和信息共享队列一致
     thread_Result_mapping = {
-        "群号1": multiprocessing.Queue(),
-        "群号2": multiprocessing.Queue()
+        "588039956": multiprocessing.Queue(),
+        "719631496": multiprocessing.Queue()
     }
     lock = multiprocessing.Lock()
     lock_file = multiprocessing.Lock()
@@ -46,6 +54,7 @@ def main():
     Message_Queue = multiprocessing.Queue()
     GetMessage_process = multiprocessing.Process(target=GetMessage.getmessage,args=(Message_Queue,))
     GetMessage_process.start()
+    #创建处理go-cqhttp信息的进程
     Create_Process = multiprocessing.Process(target=GLMmain.Create_Process,args=(Message_Queue,thread_mapping,thread_Result_mapping,lock,lock_file))
     Create_Process.start()
 
@@ -56,37 +65,58 @@ def main():
             if not result_queue.empty():
                 with lock:
                     History = result_queue.get()
-                    print("History is", History)
                     Result = result_queue.get()
-                    print("Result is",Result)
+                    print("已将历史和此次对话递交给CHATGLM")
 
                     GLMResult, history = predict(model,Result, History,tokenizer)
+                    #储存历史
                     result_queue.put(history)
 
-                #储存历史记录
+
+
                 GLMResult = TextHandel.remove_prefix(GLMResult)
-                TextHandel.append_to_txt_file("CollectedData.txt",Result,GLMResult,history)
                 print("GLMResult is:" + GLMResult)
 
+
+
+                #存入八六说的话
+                SendTime = datetime.datetime.now()
+                MessageContent = GLMResult
+                Nickname = '八六'
+                MessageVector = embedding.GetEmbedding(GLMResult).tolist()
+                my_list_json = json.dumps(MessageVector)
+
+                VectorData = my_list_json
+                Data = {
+                    "MessageContent": MessageContent,
+                    "Nickname": Nickname,
+                    "group_id": group_id,
+                    "SendTime": SendTime,
+                }
+                print("正在存入消息", SendTime, Nickname, MessageContent, my_list_json)
+                database.insert_Chatdata(VectorData, Data)
+                print("存入完毕")
+
+
+                #如果连说两句话，则分条发送
                 if '\n' in GLMResult:
                     ResultList = TextHandel.lines_to_list(GLMResult)
                     for MessageResult in ResultList:
                         SendMessage.sendmessage(TextHandel.remove_prefix(MessageResult),group_id)
 
+                        '''
                         MemorySentence = global_var.CharacterName+ "：" + TextHandel.remove_prefix(MessageResult)
                         MemoryResult = {"sentence": MemorySentence,
                                         "embedding": embedding.GetEmbedding(MemorySentence).tolist()}
-                        with lock_file:
-                            TextHandel.append_to_memory_file(r'.\memory\truememory.json',MemoryResult)
+                        '''
                 else:
                     SendMessage.sendmessage(TextHandel.remove_prefix(GLMResult),group_id)
 
+                    '''
                     MemorySentence = global_var.CharacterName + "：" + TextHandel.remove_prefix(GLMResult)
                     MemoryResult = {"sentence": MemorySentence,
                                     "embedding": embedding.GetEmbedding(MemorySentence).tolist()}
-
-                    with lock_file:
-                        TextHandel.append_to_memory_file(r'.\memory\truememory.json', MemoryResult)
+                    '''
 
 
 def predict(model,query,history,tokenizer):

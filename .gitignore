@@ -1,0 +1,5 @@
+/.idea
+model/bert-base-chinese
+model/ChatGLM2-6b
+model/baliu_model
+/venv
